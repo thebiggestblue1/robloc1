@@ -1,1 +1,72 @@
-ededededede
+local players = game:GetService("Players")
+local path = game:GetService("PathfindingService"):CreatePath({AgentCanJump = false})
+local plr = players.LocalPlayer
+local character = workspace:WaitForChild(plr.Name)
+local pathfinding = false
+local map
+local coinsFolder
+local murderer
+
+local function getMurderer()
+	for _, player in pairs(players:GetChildren()) do
+		if player.Backpack:FindFirstChild("Knife") or workspace:WaitForChild(player.Name):FindFirstChild("Knife") then
+			return workspace:WaitForChild(player.Name)
+		end
+	end
+
+	return nil
+end
+
+local function runFromMurderer()
+	if not murderer or not map then return end
+	local hrp = murderer:WaitForChild("HumanoidRootPart")
+
+	if hrp then
+		for _, coin in pairs(coinsFolder:GetChildren()) do
+			print('s')
+			if (hrp.Position - coin.Position).Magnitude > (character.HumanoidRootPart.Position - coin.Position).Magnitude and not pathfinding then
+				pathfinding = true
+				path:ComputeAsync(character.HumanoidRootPart.Position, coin.Position)
+
+				for i, waypoint in pairs(path:GetWaypoints()) do
+					if (waypoint.Position - hrp.Position).Magnitude < 50 then
+						pathfinding = false
+						runFromMurderer()
+						return
+					else
+						character.Humanoid:MoveTo(waypoint.Position)
+
+						if waypoint.Action == Enum.PathWaypointAction.Jump then
+							character.Humanoid.Jump = true
+						end
+					end
+
+					if i == #path:GetWaypoints() then
+						runFromMurderer()
+					end
+				end
+			end
+		end
+	end
+end
+
+workspace.ChildAdded:Connect(function(child)
+	task.wait(1)
+	if child:FindFirstChild("IconSq") then
+		map = child
+		coinsFolder = map:WaitForChild("CoinCointainer")
+
+		repeat
+			getMurderer()
+			task.wait(1)
+		until getMurderer() ~= nil
+
+		murderer = getMurderer()
+
+		while map and task.wait(0.5) and getMurderer() do
+			runFromMurderer()
+		end
+	end
+end)
+
+print("injected")
